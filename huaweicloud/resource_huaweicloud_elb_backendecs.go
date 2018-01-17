@@ -99,7 +99,7 @@ func resourceELBBackendECSCreate(d *schema.ResourceData, meta interface{}) error
 	}
 
 	var createOpts backendecs.CreateOpts
-	err = buildELBCreateParam(&createOpts, d)
+	err, _ = buildELBCreateParam(&createOpts, d)
 	if err != nil {
 		return fmt.Errorf("Error creating %s: building parameter failed:%s", nameELBBackend, err)
 	}

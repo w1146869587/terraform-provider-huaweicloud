@@ -120,15 +120,52 @@ func hasFilledParam(d *schema.ResourceData, param string) bool {
 	return b
 }
 
-func buildELBCreateParam(opts interface{}, d *schema.ResourceData) error {
-	return buildELBCUParam(opts, d, false)
+type skipParamParsing func(tags []string) bool
+
+func buildELBCreateParam(opts interface{}, d *schema.ResourceData) (error, []string) {
+	var not_pass_params []string
+	var h skipParamParsing
+	h = func(tags []string) bool {
+		param := tags[0]
+		if len(tags) == 1 || tags[1] == "-" && !hasFilledParam(d, param) {
+			not_pass_params = append(not_pass_params, param)
+			return true
+		}
+
+		return false
+	}
+
+	return buildELBCUParam(opts, d, h), not_pass_params
 }
 
-func buildELBUpdateParam(opts interface{}, d *schema.ResourceData) error {
-	return buildELBCUParam(opts, d, true)
+func buildELBUpdateParam(opts interface{}, d *schema.ResourceData) (error, []string) {
+	hasUpdatedItems := false
+	var not_pass_params []string
+
+	var h skipParamParsing
+	h = func(tags []string) bool {
+		param := tags[0]
+
+		if !d.HasChange(param) {
+			not_pass_params = append(not_pass_params, param)
+			return true
+		} else if !hasUpdatedItems {
+			hasUpdatedItems = true
+		}
+
+		return false
+	}
+	err := buildELBCUParam(opts, d, h)
+	if err != nil {
+		return err, not_pass_params
+	}
+	if !hasUpdatedItems {
+		return fmt.Errorf("no changes happened"), not_pass_params
+	}
+	return nil, not_pass_params
 }
 
-func buildELBCUParam(opts interface{}, d *schema.ResourceData, buildUpdate bool) error {
+func buildELBCUParam(opts interface{}, d *schema.ResourceData, skip skipParamParsing) error {
 	optsValue := reflect.ValueOf(opts)
 	if optsValue.Kind() != reflect.Ptr {
 		return fmt.Errorf("parameter of opts should be a pointer")
@@ -148,11 +185,11 @@ func buildELBCUParam(opts interface{}, d *schema.ResourceData, buildUpdate bool)
 		if tag == "" {
 			return fmt.Errorf("can not convert for item %v: without of json tag", v)
 		}
-		param := strings.Split(tag, ",")[0]
-		if buildUpdate && !d.HasChange(param) {
+		tags := strings.Split(tag, ",")
+		if skip(tags) {
 			continue
 		}
-
+		param := tags[0]
 		if d.Get(param) == nil {
 			continue
 		}

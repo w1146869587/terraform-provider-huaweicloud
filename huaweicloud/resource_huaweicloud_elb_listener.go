@@ -292,7 +292,7 @@ func resourceELBListenerCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	var opts listeners.CreateOpts
-	err = buildELBCreateParam(&opts, d)
+	err, _ = buildELBCreateParam(&opts, d)
 	if err != nil {
 		return fmt.Errorf("Error creating %s: building parameter failed:%s", nameELBListener, err)
 	}
@@ -351,7 +351,7 @@ func resourceELBListenerUpdate(d *schema.ResourceData, meta interface{}) error {
 	lId := d.Id()
 
 	var opts listeners.UpdateOpts
-	err = buildELBUpdateParam(&opts, d)
+	err, _ = buildELBUpdateParam(&opts, d)
 	if err != nil {
 		return fmt.Errorf("Error updating %s %s: building parameter failed:%s", nameELBListener, lId, err)
 	}

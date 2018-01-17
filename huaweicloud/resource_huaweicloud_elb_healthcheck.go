@@ -149,7 +149,7 @@ func resourceELBHealthCheckCreate(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	var createOpts healthcheck.CreateOpts
-	err = buildELBCreateParam(&createOpts, d)
+	err, _ = buildELBCreateParam(&createOpts, d)
 	if err != nil {
 		return fmt.Errorf("Error creating %s: building parameter failed:%s", nameELBHC, err)
 	}
@@ -193,7 +193,7 @@ func resourceELBHealthCheckUpdate(d *schema.ResourceData, meta interface{}) erro
 	hcId := d.Id()
 
 	var updateOpts healthcheck.UpdateOpts
-	err = buildELBUpdateParam(&updateOpts, d)
+	err, _ = buildELBUpdateParam(&updateOpts, d)
 	if err != nil {
 		return fmt.Errorf("Error updating %s(%s): building parameter failed:%s", nameELBHC, hcId, err)
 	}
