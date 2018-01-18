@@ -115,19 +115,38 @@ func isELBResourceNotFound(err error) bool {
 	return ok
 }
 
+// The result may be not correct when the type of param is string and user config it to 'param=""'
+// but, there is no other way.
 func hasFilledParam(d *schema.ResourceData, param string) bool {
 	_, b := d.GetOkExists(param)
 	return b
 }
 
-type skipParamParsing func(tags []string) bool
+func getParamTag(key string, tag reflect.StructTag) string {
+	v, ok := tag.Lookup(key)
+	if ok {
+		return v
+	}
+	return "tag_not_set"
+}
+
+type skipParamParsing func(jsonTags []string, tag reflect.StructTag) bool
 
 func buildELBCreateParam(opts interface{}, d *schema.ResourceData) (error, []string) {
 	var not_pass_params []string
 	var h skipParamParsing
-	h = func(tags []string) bool {
-		param := tags[0]
-		if len(tags) == 1 || tags[1] == "-" && !hasFilledParam(d, param) {
+	h = func(jsonTags []string, tag reflect.StructTag) bool {
+		if getParamTag("required", tag) == "true" {
+			return false
+		}
+
+		param := jsonTags[0]
+		// For Create operation, it should not pass the parameter in the request, which match all the following situations.
+		// a. Parameter is optional, which means it is not set 'required' in the tag.
+		// b. Parameter's default value is allowed, which menas it is not set 'omitempty' in the tag of 'json'. The default value is like this, '0' for int and 'false' for bool
+		// c. Parameter is not set default value in schema. It did not find a way to check whether it was set default value in the schema. so, add a new tag of "no_default" to mark it.
+		// d. User did not set that parameter in the configuration file, which means the return value of 'hasFilledParam' is false.
+		if (len(jsonTags) == 1 || jsonTags[1] == "-") && getParamTag("no_default", tag) == "y" && !hasFilledParam(d, param) {
 			not_pass_params = append(not_pass_params, param)
 			return true
 		}
@@ -143,9 +162,10 @@ func buildELBUpdateParam(opts interface{}, d *schema.ResourceData) (error, []str
 	var not_pass_params []string
 
 	var h skipParamParsing
-	h = func(tags []string) bool {
-		param := tags[0]
+	h = func(jsonTags []string, tag reflect.StructTag) bool {
+		param := jsonTags[0]
 
+		// filter the unchanged parameters
 		if !d.HasChange(param) {
 			not_pass_params = append(not_pass_params, param)
 			return true
@@ -181,12 +201,12 @@ func buildELBCUParam(opts interface{}, d *schema.ResourceData, skip skipParamPar
 	for i := 0; i < optsValue.NumField(); i++ {
 		v := optsValue.Field(i)
 		f := optsType.Field(i)
-		tag := f.Tag.Get("json")
+		tag := getParamTag("json", f.Tag)
 		if tag == "" {
 			return fmt.Errorf("can not convert for item %v: without of json tag", v)
 		}
 		tags := strings.Split(tag, ",")
-		if skip(tags) {
+		if skip(tags, f.Tag) {
 			continue
 		}
 		param := tags[0]
