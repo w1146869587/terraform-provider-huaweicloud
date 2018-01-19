@@ -141,6 +141,11 @@ func buildELBCreateParam(opts interface{}, d *schema.ResourceData) (error, []str
 		}
 
 		param := jsonTags[0]
+		// For Create operation, it should not pass the parameter in the request, which match all the following situations.
+		// a. Parameter is optional, which means it is not set 'required' in the tag.
+		// b. Parameter's default value is allowed, which menas it is not set 'omitempty' in the tag of 'json'. The default value is like this, '0' for int and 'false' for bool
+		// c. Parameter is not set default value in schema. It did not find a way to check whether it was set default value in the schema. so, add a new tag of "no_default" to mark it.
+		// d. User did not set that parameter in the configuration file, which means the return value of 'hasFilledParam' is false.
 		if (len(jsonTags) == 1 || jsonTags[1] == "-") && getParamTag("no_default", tag) == "y" && !hasFilledParam(d, param) {
 			not_pass_params = append(not_pass_params, param)
 			return true
@@ -160,6 +165,7 @@ func buildELBUpdateParam(opts interface{}, d *schema.ResourceData) (error, []str
 	h = func(jsonTags []string, tag reflect.StructTag) bool {
 		param := jsonTags[0]
 
+		// filter the unchanged parameters
 		if !d.HasChange(param) {
 			not_pass_params = append(not_pass_params, param)
 			return true
