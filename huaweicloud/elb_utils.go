@@ -107,7 +107,7 @@ func chooseELBClient(d *schema.ResourceData, config *Config) (*gophercloud.Servi
 	return config.loadElasticLoadBalancerClient(GetRegion(d, config))
 }
 
-func isELBResourceNotFound(err error) bool {
+func isResourceNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -132,7 +132,7 @@ func getParamTag(key string, tag reflect.StructTag) string {
 
 type skipParamParsing func(jsonTags []string, tag reflect.StructTag) bool
 
-func buildELBCreateParam(opts interface{}, d *schema.ResourceData) (error, []string) {
+func buildCreateParam(opts interface{}, d *schema.ResourceData) (error, []string) {
 	var not_pass_params []string
 	var h skipParamParsing
 	h = func(jsonTags []string, tag reflect.StructTag) bool {
@@ -154,10 +154,10 @@ func buildELBCreateParam(opts interface{}, d *schema.ResourceData) (error, []str
 		return false
 	}
 
-	return buildELBCUParam(opts, d, h), not_pass_params
+	return buildCUParam(opts, d, h), not_pass_params
 }
 
-func buildELBUpdateParam(opts interface{}, d *schema.ResourceData) (error, []string) {
+func buildUpdateParam(opts interface{}, d *schema.ResourceData) (error, []string) {
 	hasUpdatedItems := false
 	var not_pass_params []string
 
@@ -175,7 +175,7 @@ func buildELBUpdateParam(opts interface{}, d *schema.ResourceData) (error, []str
 
 		return false
 	}
-	err := buildELBCUParam(opts, d, h)
+	err := buildCUParam(opts, d, h)
 	if err != nil {
 		return err, not_pass_params
 	}
@@ -185,7 +185,7 @@ func buildELBUpdateParam(opts interface{}, d *schema.ResourceData) (error, []str
 	return nil, not_pass_params
 }
 
-func buildELBCUParam(opts interface{}, d *schema.ResourceData, skip skipParamParsing) error {
+func buildCUParam(opts interface{}, d *schema.ResourceData, skip skipParamParsing) error {
 	optsValue := reflect.ValueOf(opts)
 	if optsValue.Kind() != reflect.Ptr {
 		return fmt.Errorf("parameter of opts should be a pointer")
@@ -197,6 +197,7 @@ func buildELBCUParam(opts interface{}, d *schema.ResourceData, skip skipParamPar
 
 	optsType := reflect.TypeOf(opts)
 	optsType = optsType.Elem()
+	value := make(map[string]interface{})
 
 	for i := 0; i < optsValue.NumField(); i++ {
 		v := optsValue.Field(i)
@@ -210,19 +211,48 @@ func buildELBCUParam(opts interface{}, d *schema.ResourceData, skip skipParamPar
 			continue
 		}
 		param := tags[0]
-		if d.Get(param) == nil {
+		pv := d.Get(param)
+		if pv == nil {
+			log.Printf("[DEBUG] param:%s is not set", param)
+			continue
+		}
+		value[param] = pv
+	}
+	if len(value) == 0 {
+		log.Printf("[WARN]no parameter was set")
+		return nil
+	}
+	return buildStruct(&optsValue, optsType, value)
+}
+
+func buildStruct(optsValue *reflect.Value, optsType reflect.Type, value map[string]interface{}) error {
+	log.Printf("[DEBUG] buildStruct:: optsValue=%v, optsType=%v, value=%#v\n", optsValue, optsType, value)
+
+	for i := 0; i < optsValue.NumField(); i++ {
+		v := optsValue.Field(i)
+		f := optsType.Field(i)
+		tag := f.Tag.Get("json")
+		if tag == "" {
+			return fmt.Errorf("can not convert for item %v: without of json tag", v)
+		}
+		param := strings.Split(tag, ",")[0]
+		log.Printf("[DEBUG] buildStruct:: convert for param:%s", param)
+		if _, e := value[param]; !e {
+			log.Printf("[DEBUG] param:%s was not supplied", param)
 			continue
 		}
 
 		switch v.Kind() {
 		case reflect.String:
-			v.SetString(d.Get(param).(string))
+			v.SetString(value[param].(string))
 		case reflect.Int:
-			v.SetInt(int64(d.Get(param).(int)))
+			v.SetInt(int64(value[param].(int)))
+		case reflect.Int64:
+			v.SetInt(value[param].(int64))
 		case reflect.Bool:
-			v.SetBool(d.Get(param).(bool))
+			v.SetBool(value[param].(bool))
 		case reflect.Slice:
-			s := d.Get(param).([]interface{})
+			s := value[param].([]interface{})
 
 			switch v.Type().Elem().Kind() {
 			case reflect.String:
@@ -231,8 +261,38 @@ func buildELBCUParam(opts interface{}, d *schema.ResourceData, skip skipParamPar
 					t[i] = iv.(string)
 				}
 				v.Set(reflect.ValueOf(t))
+			case reflect.Struct:
+				t := reflect.MakeSlice(f.Type, len(s), len(s))
+				for i, iv := range s {
+					rv := t.Index(i)
+					e := buildStruct(&rv, f.Type.Elem(), iv.(map[string]interface{}))
+					if e != nil {
+						return e
+					}
+				}
+				v.Set(t)
+
 			default:
 				return fmt.Errorf("unknown type of item %v: %v", v, v.Type().Elem().Kind())
+			}
+		case reflect.Struct:
+			log.Printf("[DEBUG] buildStruct:: convert struct for param %s: %#v", param, value[param])
+			var p map[string]interface{}
+
+			// If the type of parameter is Struct, then the corresponding type in Schema is TypeList
+			v0, ok := value[param].([]interface{})
+			if ok {
+				p, ok = v0[0].(map[string]interface{})
+			} else {
+				p, ok = value[param].(map[string]interface{})
+			}
+			if !ok {
+				return fmt.Errorf("can not convert to (map[string]interface{}) for param %s: %#v", param, value[param])
+			}
+
+			e := buildStruct(&v, f.Type, p)
+			if e != nil {
+				return e
 			}
 
 		default:
