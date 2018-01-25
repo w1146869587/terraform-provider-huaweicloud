@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -130,17 +131,20 @@ func getParamTag(key string, tag reflect.StructTag) string {
 	return "tag_not_set"
 }
 
-type skipParamParsing func(jsonTags []string, tag reflect.StructTag) bool
+func get_param_name_from_tag(name string) string {
+	return strings.ToLower(name)
+}
+
+type skipParamParsing func(param string, jsonTags []string, tag reflect.StructTag) bool
 
 func buildCreateParam(opts interface{}, d *schema.ResourceData) (error, []string) {
 	var not_pass_params []string
 	var h skipParamParsing
-	h = func(jsonTags []string, tag reflect.StructTag) bool {
+	h = func(param string, jsonTags []string, tag reflect.StructTag) bool {
 		if getParamTag("required", tag) == "true" {
 			return false
 		}
 
-		param := jsonTags[0]
 		// For Create operation, it should not pass the parameter in the request, which match all the following situations.
 		// a. Parameter is optional, which means it is not set 'required' in the tag.
 		// b. Parameter's default value is allowed, which menas it is not set 'omitempty' in the tag of 'json'. The default value is like this, '0' for int and 'false' for bool
@@ -162,9 +166,7 @@ func buildUpdateParam(opts interface{}, d *schema.ResourceData) (error, []string
 	var not_pass_params []string
 
 	var h skipParamParsing
-	h = func(jsonTags []string, tag reflect.StructTag) bool {
-		param := jsonTags[0]
-
+	h = func(param string, jsonTags []string, tag reflect.StructTag) bool {
 		// filter the unchanged parameters
 		if !d.HasChange(param) {
 			not_pass_params = append(not_pass_params, param)
@@ -207,10 +209,13 @@ func buildCUParam(opts interface{}, d *schema.ResourceData, skip skipParamParsin
 			return fmt.Errorf("can not convert for item %v: without of json tag", v)
 		}
 		tags := strings.Split(tag, ",")
-		if skip(tags, f.Tag) {
+		param := get_param_name_from_tag(tags[0])
+		// Only check the parameters in top struct.
+		// If the parameters in sub-struct need skip, it will miss.
+		// If it happens, need refactor here.
+		if skip(param, tags, f.Tag) {
 			continue
 		}
-		param := tags[0]
 		pv := d.Get(param)
 		if pv == nil {
 			log.Printf("[DEBUG] param:%s is not set", param)
@@ -235,7 +240,7 @@ func buildStruct(optsValue *reflect.Value, optsType reflect.Type, value map[stri
 		if tag == "" {
 			return fmt.Errorf("can not convert for item %v: without of json tag", v)
 		}
-		param := strings.Split(tag, ",")[0]
+		param := get_param_name_from_tag(strings.Split(tag, ",")[0])
 		log.Printf("[DEBUG] buildStruct:: convert for param:%s", param)
 		if _, e := value[param]; !e {
 			log.Printf("[DEBUG] param:%s was not supplied", param)
@@ -302,11 +307,28 @@ func buildStruct(optsValue *reflect.Value, optsType reflect.Type, value map[stri
 	return nil
 }
 
+func changeKeyToLowercase(b []byte) {
+	m := regexp.MustCompile(`"([a-z0-9_]*[A-Z]+[a-z0-9_]*)+":`)
+	for {
+		bs := fmt.Sprintf("%s", b)
+		index := m.FindStringIndex(bs)
+		if index == nil {
+			break
+		}
+		for i := index[0] + 1; i < index[1]-1; i++ {
+			if b[i] > 0x40 && b[i] < 0x5B {
+				b[i] = b[i] + 0x20
+			}
+		}
+	}
+}
+
 func refreshResourceData(resource interface{}, d *schema.ResourceData) error {
 	b, err := json.Marshal(resource)
 	if err != nil {
 		return fmt.Errorf("refreshResourceData:: marshal failed:%v", err)
 	}
+	changeKeyToLowercase(b)
 
 	p := make(map[string]interface{})
 	err = json.Unmarshal(b, &p)
@@ -336,7 +358,7 @@ func readStruct(resource interface{}, value map[string]interface{}, d *schema.Re
 		if tag == "" {
 			return fmt.Errorf("can not convert for item %v: without of json tag", v)
 		}
-		param := strings.Split(tag, ",")[0]
+		param := get_param_name_from_tag(strings.Split(tag, ",")[0])
 		if param == "id" {
 			continue
 		}
