@@ -454,3 +454,9 @@ func NewElasticLoadBalancer(client *gophercloud.ProviderClient, eo gophercloud.E
 	sc.ResourceBase = sc.Endpoint
 	return sc, err
 }
+
+func NewCCE(client *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (*gophercloud.ServiceClient, error) {
+	sc, err := initClientOpts(client, eo, "cce")
+	sc.ResourceBase = sc.Endpoint
+	return sc, err
+}
