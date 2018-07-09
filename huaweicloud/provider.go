@@ -167,6 +167,26 @@ func Provider() terraform.ResourceProvider {
 				DefaultFunc: schema.EnvDefaultFunc("OS_CLOUD", ""),
 				Description: descriptions["cloud"],
 			},
+
+			"agency_name": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("OS_AGENCY_NAME", ""),
+				Description: descriptions["agency_name"],
+			},
+
+			"agency_domain_name": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("OS_AGENCY_DOMAIN_NAME", ""),
+				Description: descriptions["agency_domain_name"],
+			},
+			"agency_project_name": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("OS_AGENCY_PROJECT_NAME", ""),
+				Description: descriptions["agency_project_name"],
+			},
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
@@ -273,31 +293,40 @@ func init() {
 			"service (Octavia) instead of the Networking service (Neutron).",
 
 		"cloud": "An entry in a `clouds.yaml` file to use.",
+
+		"agency_name": "The name of agency",
+
+		"agency_domain_name": "The domain name of agency (Identity v3).",
+
+		"agency_project_name": "The project name of agency (Identity v3).",
 	}
 }
 
 func configureProvider(d *schema.ResourceData) (interface{}, error) {
 	config := Config{
-		AccessKey:        d.Get("access_key").(string),
-		SecretKey:        d.Get("secret_key").(string),
-		CACertFile:       d.Get("cacert_file").(string),
-		ClientCertFile:   d.Get("cert").(string),
-		ClientKeyFile:    d.Get("key").(string),
-		Cloud:            d.Get("cloud").(string),
-		DomainID:         d.Get("domain_id").(string),
-		DomainName:       d.Get("domain_name").(string),
-		EndpointType:     d.Get("endpoint_type").(string),
-		IdentityEndpoint: d.Get("auth_url").(string),
-		Insecure:         d.Get("insecure").(bool),
-		Password:         d.Get("password").(string),
-		Region:           d.Get("region").(string),
-		Swauth:           d.Get("swauth").(bool),
-		Token:            d.Get("token").(string),
-		TenantID:         d.Get("tenant_id").(string),
-		TenantName:       d.Get("tenant_name").(string),
-		Username:         d.Get("user_name").(string),
-		UserID:           d.Get("user_id").(string),
-		useOctavia:       d.Get("use_octavia").(bool),
+		AccessKey:         d.Get("access_key").(string),
+		SecretKey:         d.Get("secret_key").(string),
+		CACertFile:        d.Get("cacert_file").(string),
+		ClientCertFile:    d.Get("cert").(string),
+		ClientKeyFile:     d.Get("key").(string),
+		Cloud:             d.Get("cloud").(string),
+		DomainID:          d.Get("domain_id").(string),
+		DomainName:        d.Get("domain_name").(string),
+		EndpointType:      d.Get("endpoint_type").(string),
+		IdentityEndpoint:  d.Get("auth_url").(string),
+		Insecure:          d.Get("insecure").(bool),
+		Password:          d.Get("password").(string),
+		Region:            d.Get("region").(string),
+		Swauth:            d.Get("swauth").(bool),
+		Token:             d.Get("token").(string),
+		TenantID:          d.Get("tenant_id").(string),
+		TenantName:        d.Get("tenant_name").(string),
+		Username:          d.Get("user_name").(string),
+		UserID:            d.Get("user_id").(string),
+		useOctavia:        d.Get("use_octavia").(bool),
+		AgencyName:        d.Get("agency_name").(string),
+		AgencyDomainName:  d.Get("agency_domain_name").(string),
+		AgencyProjectName: d.Get("agency_project_name").(string),
 	}
 
 	if err := config.LoadAndValidate(); err != nil {

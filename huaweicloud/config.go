@@ -25,26 +25,29 @@ import (
 )
 
 type Config struct {
-	AccessKey        string
-	SecretKey        string
-	CACertFile       string
-	ClientCertFile   string
-	ClientKeyFile    string
-	Cloud            string
-	DomainID         string
-	DomainName       string
-	EndpointType     string
-	IdentityEndpoint string
-	Insecure         bool
-	Password         string
-	Region           string
-	Swauth           bool
-	TenantID         string
-	TenantName       string
-	Token            string
-	Username         string
-	UserID           string
-	useOctavia       bool
+	AccessKey         string
+	SecretKey         string
+	CACertFile        string
+	ClientCertFile    string
+	ClientKeyFile     string
+	Cloud             string
+	DomainID          string
+	DomainName        string
+	EndpointType      string
+	IdentityEndpoint  string
+	Insecure          bool
+	Password          string
+	Region            string
+	Swauth            bool
+	TenantID          string
+	TenantName        string
+	Token             string
+	Username          string
+	UserID            string
+	useOctavia        bool
+	AgencyName        string
+	AgencyDomainName  string
+	AgencyProjectName string
 
 	OsClient *gophercloud.ProviderClient
 	HwClient *golangsdk.ProviderClient
@@ -214,15 +217,18 @@ func newopenstackClient(c *Config) error {
 
 func newhwClient(c *Config) error {
 	ao := golangsdk.AuthOptions{
-		DomainID:         c.DomainID,
-		DomainName:       c.DomainName,
-		IdentityEndpoint: c.IdentityEndpoint,
-		Password:         c.Password,
-		TenantID:         c.TenantID,
-		TenantName:       c.TenantName,
-		TokenID:          c.Token,
-		Username:         c.Username,
-		UserID:           c.UserID,
+		DomainID:          c.DomainID,
+		DomainName:        c.DomainName,
+		IdentityEndpoint:  c.IdentityEndpoint,
+		Password:          c.Password,
+		TenantID:          c.TenantID,
+		TenantName:        c.TenantName,
+		TokenID:           c.Token,
+		Username:          c.Username,
+		UserID:            c.UserID,
+		AgencyName:        c.AgencyName,
+		AgencyDomainName:  c.AgencyDomainName,
+		AgencyProjectName: c.AgencyProjectName,
 	}
 
 	client, err := huaweisdk.NewClient(ao.IdentityEndpoint)
