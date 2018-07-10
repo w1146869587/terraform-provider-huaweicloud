@@ -1,12 +1,13 @@
 package huaweicloud
 
 import (
-	//"bytes"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"text/template"
 
@@ -14,12 +15,9 @@ import (
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
 
-	"strings"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	//"github.com/aws/aws-sdk-go/service/ec2"
-	"bytes"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/hashicorp/terraform/helper/schema"
 )
