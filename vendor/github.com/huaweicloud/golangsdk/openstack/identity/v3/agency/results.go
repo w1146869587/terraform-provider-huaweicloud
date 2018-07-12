@@ -38,6 +38,6 @@ type UpdateResult struct {
 	commonResult
 }
 
-type DeleteResult struct {
+type ErrResult struct {
 	golangsdk.ErrResult
 }
