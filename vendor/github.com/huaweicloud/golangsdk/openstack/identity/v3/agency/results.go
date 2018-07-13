@@ -1,6 +1,9 @@
 package agency
 
-import "github.com/huaweicloud/golangsdk"
+import (
+	"github.com/huaweicloud/golangsdk"
+	"github.com/huaweicloud/golangsdk/openstack/identity/v3/roles"
+)
 
 type Agency struct {
 	ID               string `json:"id"`
@@ -40,4 +43,16 @@ type UpdateResult struct {
 
 type ErrResult struct {
 	golangsdk.ErrResult
+}
+
+type ListRolesResult struct {
+	golangsdk.Result
+}
+
+func (r ListRolesResult) ExtractRoles() ([]roles.Role, error) {
+	var s struct {
+		Roles []roles.Role `json:"roles"`
+	}
+	err := r.ExtractInto(&s)
+	return s.Roles, err
 }

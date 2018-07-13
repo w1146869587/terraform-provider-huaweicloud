@@ -18,3 +18,7 @@ func resourceURL(c *golangsdk.ServiceClient, id string) string {
 func attachRoleURL(c *golangsdk.ServiceClient, resource, resourceID, agencyID, roleID string) string {
 	return c.ServiceURL(rootPath, resource, resourceID, resourcePath, agencyID, "roles", roleID)
 }
+
+func listRolesURL(c *golangsdk.ServiceClient, resource, resourceID, agencyID string) string {
+	return c.ServiceURL(rootPath, resource, resourceID, resourcePath, agencyID, "roles")
+}

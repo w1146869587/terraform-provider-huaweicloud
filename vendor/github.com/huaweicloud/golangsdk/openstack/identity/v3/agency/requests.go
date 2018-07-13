@@ -78,3 +78,8 @@ func AttachRoleByDomain(c *golangsdk.ServiceClient, agencyID, domainID, roleID s
 	_, r.Err = c.Put(attachRoleURL(c, "domains", domainID, agencyID, roleID), nil, nil, reqOpt)
 	return
 }
+
+func ListRolesAttachedOnProject(c *golangsdk.ServiceClient, agencyID, projectID string) (r ListRolesResult) {
+	_, r.Err = c.Get(listRolesURL(c, "projects", projectID, agencyID), &r.Body, nil)
+	return
+}
