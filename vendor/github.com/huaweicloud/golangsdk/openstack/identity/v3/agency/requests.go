@@ -69,13 +69,19 @@ func Delete(c *golangsdk.ServiceClient, id string) (r ErrResult) {
 
 func AttachRoleByProject(c *golangsdk.ServiceClient, agencyID, projectID, roleID string) (r ErrResult) {
 	reqOpt := &golangsdk.RequestOpts{OkCodes: []int{204}}
-	_, r.Err = c.Put(attachRoleURL(c, "projects", projectID, agencyID, roleID), nil, nil, reqOpt)
+	_, r.Err = c.Put(roleURL(c, "projects", projectID, agencyID, roleID), nil, nil, reqOpt)
 	return
 }
 
 func AttachRoleByDomain(c *golangsdk.ServiceClient, agencyID, domainID, roleID string) (r ErrResult) {
 	reqOpt := &golangsdk.RequestOpts{OkCodes: []int{204}}
-	_, r.Err = c.Put(attachRoleURL(c, "domains", domainID, agencyID, roleID), nil, nil, reqOpt)
+	_, r.Err = c.Put(roleURL(c, "domains", domainID, agencyID, roleID), nil, nil, reqOpt)
+	return
+}
+
+func DetachRoleByProject(c *golangsdk.ServiceClient, agencyID, projectID, roleID string) (r ErrResult) {
+	reqOpt := &golangsdk.RequestOpts{OkCodes: []int{204}}
+	_, r.Err = c.Delete(roleURL(c, "projects", projectID, agencyID, roleID), reqOpt)
 	return
 }
 
