@@ -80,7 +80,7 @@ func resourceIAMAgencyV3() *schema.Resource {
 				},
 			},
 			"domain_roles": &schema.Schema{
-				Type:     schema.TypeList,
+				Type:     schema.TypeSet,
 				Optional: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
@@ -323,16 +323,21 @@ func resourceIAMAgencyV3Create(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	/*
-		drs := d.Get("domain_roles").([]interface{})
-		//agencyDomainID := a.AgencyDomainID
-		for _, v := range drs {
-			err = agency.AttachRoleByDomain(client, agencyID, domainID, v.(string)).ExtractErr()
-			if err != nil {
-				return fmt.Errorf("Error attaching role(%s) by domain{%s}, err=%s",
-					v.(string), domainID, err)
-			}
-		}*/
+	drs := d.Get("domain_roles").(*schema.Set)
+	for _, role := range drs.List() {
+		r := role.(string)
+		rid, ok := roles[r]
+		if !ok {
+			return fmt.Errorf("The role(%s) is not exist", r)
+		}
+
+		err = agency.AttachRoleByDomain(client, agencyID, domainID, rid).ExtractErr()
+		if err != nil {
+			return fmt.Errorf("Error attaching role(%s) by domain{%s}, err=%s",
+				rid, domainID, err)
+		}
+	}
+
 	return resourceIAMAgencyV3Read(d, meta)
 }
 
@@ -381,6 +386,18 @@ func resourceIAMAgencyV3Read(d *schema.ResourceData, meta interface{}) error {
 		})
 	}
 	d.Set("project_role", prs)
+
+	roles, err := agency.ListRolesAttachedOnDomain(client, agencyID, a.DomainID).ExtractRoles()
+	if err != nil && !isResourceNotFound(err) {
+		return fmt.Errorf("Error querying the roles attached on domain, err=%s", err)
+	}
+	if len(roles) == 0 {
+		v := make([]string, len(roles))
+		for i, role := range roles {
+			v[i] = role.Extra["display_name"].(string)
+		}
+		d.Set("domain_roles", v)
+	}
 	return nil
 }
 
@@ -412,20 +429,24 @@ func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	if d.HasChange("project_role") {
-		domainID, err := getDomainID(config, client)
+	domainID := ""
+	var roles map[string]string
+	if d.HasChange("project_role") || d.HasChange("domain_roles") {
+		domainID, err = getDomainID(config, client)
 		if err != nil {
 			return fmt.Errorf("Error getting the domain id, err=%s", err)
 		}
 
+		roles, err = allRolesOfDomain(domainID, client)
+		if err != nil {
+			return fmt.Errorf("Error querying the roles, err=%s", err)
+		}
+	}
+
+	if d.HasChange("project_role") {
 		projects, err := listProjectsOfDomain(domainID, client)
 		if err != nil {
 			return fmt.Errorf("Error querying the projects, err=%s", err)
-		}
-
-		roles, err := allRolesOfDomain(domainID, client)
-		if err != nil {
-			return fmt.Errorf("Error querying the roles, err=%s", err)
 		}
 
 		o, n := d.GetChange("project_role")
@@ -467,6 +488,37 @@ func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
+	if d.HasChange("domain_roles") {
+		o, n := d.GetChange("domain_roles")
+		oldr := o.(*schema.Set)
+		newr := n.(*schema.Set)
+
+		for _, r := range oldr.Difference(newr).List() {
+			rid, ok := roles[r.(string)]
+			if !ok {
+				return fmt.Errorf("The role(%s) is not exist", r.(string))
+			}
+
+			err = agency.DetachRoleByDomain(client, aID, domainID, rid).ExtractErr()
+			if err != nil {
+				return fmt.Errorf("Error detaching role(%s) by domain{%s} to agency(%s), err=%s",
+					rid, domainID, aID, err)
+			}
+		}
+
+		for _, r := range newr.Difference(oldr).List() {
+			rid, ok := roles[r.(string)]
+			if !ok {
+				return fmt.Errorf("The role(%s) is not exist", r.(string))
+			}
+
+			err = agency.AttachRoleByDomain(client, aID, domainID, rid).ExtractErr()
+			if err != nil {
+				return fmt.Errorf("Error attaching role(%s) by domain{%s} to agency(%s), err=%s",
+					rid, domainID, aID, err)
+			}
+		}
+	}
 	return resourceIAMAgencyV3Read(d, meta)
 }
 
