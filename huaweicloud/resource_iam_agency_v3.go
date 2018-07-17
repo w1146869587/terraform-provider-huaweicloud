@@ -463,7 +463,7 @@ func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
 			}
 
 			err = agency.DetachRoleByProject(client, aID, pid, rid).ExtractErr()
-			if err != nil {
+			if err != nil && !isResourceNotFound(err) {
 				return fmt.Errorf("Error detaching role(%s) by project{%s} to agency(%s), err=%s",
 					rid, pid, aID, err)
 			}
@@ -500,7 +500,7 @@ func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
 			}
 
 			err = agency.DetachRoleByDomain(client, aID, domainID, rid).ExtractErr()
-			if err != nil {
+			if err != nil && !isResourceNotFound(err) {
 				return fmt.Errorf("Error detaching role(%s) by domain{%s} to agency(%s), err=%s",
 					rid, domainID, aID, err)
 			}
