@@ -85,7 +85,18 @@ func DetachRoleByProject(c *golangsdk.ServiceClient, agencyID, projectID, roleID
 	return
 }
 
+func DetachRoleByDomain(c *golangsdk.ServiceClient, agencyID, domainID, roleID string) (r ErrResult) {
+	reqOpt := &golangsdk.RequestOpts{OkCodes: []int{204}}
+	_, r.Err = c.Delete(roleURL(c, "domains", domainID, agencyID, roleID), reqOpt)
+	return
+}
+
 func ListRolesAttachedOnProject(c *golangsdk.ServiceClient, agencyID, projectID string) (r ListRolesResult) {
 	_, r.Err = c.Get(listRolesURL(c, "projects", projectID, agencyID), &r.Body, nil)
+	return
+}
+
+func ListRolesAttachedOnDomain(c *golangsdk.ServiceClient, agencyID, domainID string) (r ListRolesResult) {
+	_, r.Err = c.Get(listRolesURL(c, "domains", domainID, agencyID), &r.Body, nil)
 	return
 }
